@@ -7,6 +7,9 @@ import string
 import re
 from cosine_faiss_utils import load_cosine_index, create_and_save_cosine_index, search_cosine_index
 
+# Set Streamlit page config to wide layout
+st.set_page_config(layout='wide')
+
 def clean_text(text):
     if pd.isnull(text):
         return ''
@@ -145,34 +148,41 @@ if 'search_performed' not in st.session_state:
 unique_states = sorted(df['state'].dropna().unique())
 state_options = ['All States'] + unique_states
 
-# Sidebar for options or future controls
-st.sidebar.header('Options')
-selected_state = st.sidebar.selectbox('Filter by State', state_options, index=0)
-
 # Main title and description
 st.title('Semantic Search Dashboard')
+# Add introductory section
 st.markdown(
-    """
-    This dashboard allows you to semantically search for government schemes across India. 
-    Enter a query (e.g., "scholarship for students in Maharashtra") and get relevant schemes, filtered by state and central (ministry) schemes.
-    """
+    'This dashboard allows you to search for government schemes and compare results using Euclidean (L2) and Cosine Similarity. You can also filter by state.'
 )
+st.divider()
 
-# Main search section
-st.header('Search for Government Schemes')
+# Search Parameters section
+st.subheader('Search Parameters')
 with st.container():
-    col1, col2, col3 = st.columns([4, 1, 1])
+    # State filter on top, more prominent
+    st.markdown('**Filter by State or Ministry:**')
+    state_col = st.columns([1])[0]
+    selected_state = state_col.selectbox(
+        '',  # No label, label is above
+        state_options,
+        index=0,
+        key='state_filter',
+    )
+    # Query input and buttons in a single row
+    col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
     with col1:
         user_query = st.text_input(
             'Enter your search query:',
             value=st.session_state.query,
-            placeholder='Type your scheme query here... (e.g., scholarship for students in Maharashtra)',
+            placeholder='e.g., education schemes in Maharashtra, farmer loans',
             key='main_query',
         )
     with col2:
         search_button = st.button('Search', key='main_search', type='primary')
     with col3:
-        clear_button = st.button('Clear Search', key='clear_search')
+        clear_button = st.button('Clear Search', key='clear_search', type='secondary')
+
+st.divider()
 
 # Handle Clear Search
 if clear_button:
@@ -228,9 +238,17 @@ if st.session_state.search_performed:
         if l2_results is not None and not l2_results.empty:
             st.success(f"Found {len(l2_results)} result(s).")
             for idx, row in l2_results.iterrows():
-                st.subheader(row['name'])
+                st.markdown(f"#### {row['name']}")
                 st.write(f"**State:** {row['state']}")
-                tags = ', '.join([t.strip() for t in str(row['tags']).split(',') if t.strip()]) if pd.notnull(row['tags']) else ''
+                # Parse tags as list if stored as string representation of a list
+                try:
+                    tags_list = eval(row['tags']) if isinstance(row['tags'], str) else row['tags']
+                    if isinstance(tags_list, list):
+                        tags = ', '.join([t.strip() for t in tags_list if t.strip()])
+                    else:
+                        tags = str(row['tags'])
+                except:
+                    tags = str(row['tags'])
                 if tags:
                     st.write(f"**Tags:** {tags}")
                 if 'relevance_score' in row:
@@ -239,7 +257,7 @@ if st.session_state.search_performed:
                     st.write(row['description'])
                 st.divider()
         else:
-            st.warning('No L2 results found matching your criteria.')
+            st.info('No schemes found for L2 (Euclidean Distance) search.')
     
     # Right column: Cosine Similarity results
     with col2:
@@ -247,9 +265,17 @@ if st.session_state.search_performed:
         if cosine_results is not None and not cosine_results.empty:
             st.success(f"Found {len(cosine_results)} result(s).")
             for idx, row in cosine_results.iterrows():
-                st.subheader(row['name'])
+                st.markdown(f"#### {row['name']}")
                 st.write(f"**State:** {row['state']}")
-                tags = ', '.join([t.strip() for t in str(row['tags']).split(',') if t.strip()]) if pd.notnull(row['tags']) else ''
+                # Parse tags as list if stored as string representation of a list
+                try:
+                    tags_list = eval(row['tags']) if isinstance(row['tags'], str) else row['tags']
+                    if isinstance(tags_list, list):
+                        tags = ', '.join([t.strip() for t in tags_list if t.strip()])
+                    else:
+                        tags = str(row['tags'])
+                except:
+                    tags = str(row['tags'])
                 if tags:
                     st.write(f"**Tags:** {tags}")
                 if 'relevance_score' in row:
@@ -258,7 +284,7 @@ if st.session_state.search_performed:
                     st.write(row['description'])
                 st.divider()
         else:
-            st.warning('No Cosine results found matching your criteria.')
+            st.info('No schemes found for Cosine Similarity search.')
     
     # Add comparison summary
     if (l2_results is not None and not l2_results.empty) and (cosine_results is not None and not cosine_results.empty):
@@ -271,4 +297,4 @@ if st.session_state.search_performed:
         if common_results > 0:
             st.write("**Schemes appearing in both searches:**")
             for name in sorted(l2_names & cosine_names):
-                st.write(f"- {name}") 
+                st.write(f"- {name}")
