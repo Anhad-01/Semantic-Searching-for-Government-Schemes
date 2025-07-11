@@ -206,7 +206,17 @@ if submitted and user_query.strip():
         st.subheader("Results (Euclidean Distance)")
         if l2_results is not None and not l2_results.empty:
             st.success(f"Found {len(l2_results)} result(s).")
-            for idx, row in l2_results.iterrows():
+            # If a state filter is applied, sort state schemes first, then ministry schemes, both by score
+            if state_used:
+                state_mask = l2_results['state'].str.lower() == state_used.lower()
+                ministry_mask = l2_results['state'].str.lower().str.contains('ministry')
+                state_schemes = l2_results[state_mask].sort_values('relevance_score', ascending=False)
+                ministry_schemes = l2_results[ministry_mask].sort_values('relevance_score', ascending=False)
+                other_schemes = l2_results[~(state_mask | ministry_mask)].sort_values('relevance_score', ascending=False)
+                display_df = pd.concat([state_schemes, ministry_schemes, other_schemes])
+            else:
+                display_df = l2_results.sort_values('relevance_score', ascending=False)
+            for idx, row in display_df.iterrows():
                 st.markdown(f"#### {row['name']}")
                 st.write(f"**State:** {row['state']}")
                 try:
@@ -231,7 +241,17 @@ if submitted and user_query.strip():
         st.subheader("Results (Cosine Similarity)")
         if cosine_results is not None and not cosine_results.empty:
             st.success(f"Found {len(cosine_results)} result(s).")
-            for idx, row in cosine_results.iterrows():
+            # If a state filter is applied, sort state schemes first, then ministry schemes, both by score
+            if state_used:
+                state_mask = cosine_results['state'].str.lower() == state_used.lower()
+                ministry_mask = cosine_results['state'].str.lower().str.contains('ministry')
+                state_schemes = cosine_results[state_mask].sort_values('relevance_score', ascending=False)
+                ministry_schemes = cosine_results[ministry_mask].sort_values('relevance_score', ascending=False)
+                other_schemes = cosine_results[~(state_mask | ministry_mask)].sort_values('relevance_score', ascending=False)
+                display_df = pd.concat([state_schemes, ministry_schemes, other_schemes])
+            else:
+                display_df = cosine_results.sort_values('relevance_score', ascending=False)
+            for idx, row in display_df.iterrows():
                 st.markdown(f"#### {row['name']}")
                 st.write(f"**State:** {row['state']}")
                 try:
