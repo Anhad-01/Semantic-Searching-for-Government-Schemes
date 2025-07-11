@@ -149,7 +149,7 @@ unique_states = sorted(df['state'].dropna().unique())
 state_options = ['All States'] + unique_states
 
 # Main title and description
-st.title('Semantic Search Dashboard')
+st.title('Semantic Search for Government Schemes')
 # Add introductory section
 st.markdown(
     'This dashboard allows you to search for government schemes and compare results using Euclidean (L2) and Cosine Similarity. You can also filter by state.'
@@ -159,65 +159,36 @@ st.divider()
 # Search Parameters section
 st.subheader('Search Parameters')
 with st.container():
-    # State filter on top, more prominent
     st.markdown('**Filter by State or Ministry:**')
     state_col = st.columns([1])[0]
     selected_state = state_col.selectbox(
-        '',  # No label, label is above
+        '',
         state_options,
         index=0,
         key='state_filter',
     )
-    # Query input and buttons in a single row
-    col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
-    with col1:
-        user_query = st.text_input(
-            'Enter your search query:',
-            value=st.session_state.query,
-            placeholder='e.g., education schemes in Maharashtra, farmer loans',
-            key='main_query',
-        )
-    with col2:
-        search_button = st.button('Search', key='main_search', type='primary')
-    with col3:
-        clear_button = st.button('Clear Search', key='clear_search', type='secondary')
+    # Search form for query input and search button
+    with st.form("search_form"):
+        col1, col2 = st.columns([0.8, 0.2])
+        with col1:
+            user_query = st.text_input(
+                'Enter your search query:',
+                value='',
+                placeholder='e.g., education schemes in Maharashtra, farmer loans',
+                key='main_query',
+            )
+        with col2:
+            submitted = st.form_submit_button('Search', type='primary')
 
 st.divider()
 
-# Handle Clear Search
-if clear_button:
-    st.session_state.query = ''
-    st.session_state.l2_results = None
-    st.session_state.cosine_results = None
-    st.session_state.detected_state = None
-    st.session_state.search_performed = False
-    st.experimental_rerun()
-
-# Handle Search
-if search_button and user_query.strip():
-    st.session_state.query = user_query
+# Handle Search and Results Display
+if submitted and user_query.strip():
     st.write('Searching...')
     detected_state = extract_state_from_query(user_query, STATE_LIST)
     l2_results, cosine_results, state_used, l2_fallback_used, cosine_fallback_used = get_filtered_schemes_comparison(
         user_query, detected_state, df, model, l2_index, cosine_index, explicit_state=selected_state
     )
-    st.session_state.l2_results = l2_results
-    st.session_state.cosine_results = cosine_results
-    st.session_state.state_used = state_used
-    st.session_state.l2_fallback_used = l2_fallback_used
-    st.session_state.cosine_fallback_used = cosine_fallback_used
-    st.session_state.detected_state = detected_state
-    st.session_state.search_performed = True
-
-# Display results/status
-if st.session_state.search_performed:
-    detected_state = st.session_state.detected_state
-    l2_results = st.session_state.l2_results
-    cosine_results = st.session_state.cosine_results
-    state_used = getattr(st.session_state, 'state_used', None)
-    l2_fallback_used = getattr(st.session_state, 'l2_fallback_used', False)
-    cosine_fallback_used = getattr(st.session_state, 'cosine_fallback_used', False)
-    
     # Display state filter information
     if state_used:
         if selected_state != 'All States' and selected_state == state_used:
@@ -228,10 +199,8 @@ if st.session_state.search_performed:
             st.warning(f"L2 Search: No results found for {state_used.title()} (including central schemes). Showing top matches instead.")
         if cosine_fallback_used:
             st.warning(f"Cosine Search: No results found for {state_used.title()} (including central schemes). Showing top matches instead.")
-    
     # Create two columns for side-by-side comparison
     col1, col2 = st.columns(2)
-    
     # Left column: L2 (Euclidean Distance) results
     with col1:
         st.subheader("Results (Euclidean Distance)")
@@ -240,7 +209,6 @@ if st.session_state.search_performed:
             for idx, row in l2_results.iterrows():
                 st.markdown(f"#### {row['name']}")
                 st.write(f"**State:** {row['state']}")
-                # Parse tags as list if stored as string representation of a list
                 try:
                     tags_list = eval(row['tags']) if isinstance(row['tags'], str) else row['tags']
                     if isinstance(tags_list, list):
@@ -258,7 +226,6 @@ if st.session_state.search_performed:
                 st.divider()
         else:
             st.info('No schemes found for L2 (Euclidean Distance) search.')
-    
     # Right column: Cosine Similarity results
     with col2:
         st.subheader("Results (Cosine Similarity)")
@@ -267,7 +234,6 @@ if st.session_state.search_performed:
             for idx, row in cosine_results.iterrows():
                 st.markdown(f"#### {row['name']}")
                 st.write(f"**State:** {row['state']}")
-                # Parse tags as list if stored as string representation of a list
                 try:
                     tags_list = eval(row['tags']) if isinstance(row['tags'], str) else row['tags']
                     if isinstance(tags_list, list):
@@ -285,7 +251,6 @@ if st.session_state.search_performed:
                 st.divider()
         else:
             st.info('No schemes found for Cosine Similarity search.')
-    
     # Add comparison summary
     if (l2_results is not None and not l2_results.empty) and (cosine_results is not None and not cosine_results.empty):
         st.subheader("Comparison Summary")
@@ -293,7 +258,6 @@ if st.session_state.search_performed:
         cosine_names = set(cosine_results['name'].tolist())
         common_results = len(l2_names & cosine_names)
         st.write(f"**Common results between L2 and Cosine:** {common_results}/{len(l2_results)}")
-        
         if common_results > 0:
             st.write("**Schemes appearing in both searches:**")
             for name in sorted(l2_names & cosine_names):
