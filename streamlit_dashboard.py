@@ -152,7 +152,7 @@ state_options = ['All States'] + unique_states
 st.title('Semantic Search for Government Schemes')
 # Add introductory section
 st.markdown(
-    'This dashboard allows you to search for government schemes and compare results using Euclidean (L2) and Cosine Similarity. You can also filter by state.'
+    'This dashboard allows you to search for government schemes and compare results using Euclidean and Cosine Similarity. You can also filter by state or Ministry.'
 )
 st.divider()
 
