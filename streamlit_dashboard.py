@@ -6,6 +6,7 @@ from sentence_transformers import SentenceTransformer
 import string
 import re
 from cosine_faiss_utils import load_cosine_index, create_and_save_cosine_index, search_cosine_index
+from scheme_agents import euclidean_search_agent, cosine_search_agent, result_curator_agent
 
 # Set Streamlit page config to wide layout
 st.set_page_config(layout='wide')
@@ -186,19 +187,19 @@ st.divider()
 if submitted and user_query.strip():
     st.write('Searching...')
     detected_state = extract_state_from_query(user_query, STATE_LIST)
-    l2_results, cosine_results, state_used, l2_fallback_used, cosine_fallback_used = get_filtered_schemes_comparison(
-        user_query, detected_state, df, model, l2_index, cosine_index, explicit_state=selected_state
-    )
+    # Use CrewAI agents for search
+    l2_results = euclidean_search_agent.tools[0].run(query=user_query, df=df, model=model, l2_index=l2_index, detected_state=detected_state, top_k=10)
+    cosine_results = cosine_search_agent.tools[0].run(query=user_query, df=df, model=model, cosine_index=cosine_index, detected_state=detected_state, top_k=10)
+    # Curate results
+    l2_results = result_curator_agent.tools[0].run(search_results_df=l2_results, detected_state=detected_state)
+    cosine_results = result_curator_agent.tools[0].run(search_results_df=cosine_results, detected_state=detected_state)
+    state_used = detected_state if selected_state == 'All States' else selected_state
     # Display state filter information
     if state_used:
         if selected_state != 'All States' and selected_state == state_used:
             st.info(f"Explicit filter: Showing results for state: {state_used.title()} (including central schemes)")
         else:
             st.info(f"Detected from query: Showing results for state: {state_used.title()} (including central schemes)")
-        if l2_fallback_used:
-            st.warning(f"L2 Search: No results found for {state_used.title()} (including central schemes). Showing top matches instead.")
-        if cosine_fallback_used:
-            st.warning(f"Cosine Search: No results found for {state_used.title()} (including central schemes). Showing top matches instead.")
     # Create two columns for side-by-side comparison
     col1, col2 = st.columns(2)
     # Left column: L2 (Euclidean Distance) results
