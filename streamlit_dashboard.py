@@ -81,16 +81,16 @@ def get_filtered_schemes_comparison(query, detected_state, df, model, l2_index, 
     query_embedding = model.encode([cleaned_query])
     
     # L2 Search (Euclidean Distance)
-    D_l2, I_l2 = l2_index.search(query_embedding, top_k * 10)
-    top_indices_l2 = I_l2[0]
-    top_scores_l2 = D_l2[0]
+    D_l2, I_l2 = l2_index.search(query_embedding, top_k)
+    top_indices_l2 = I_l2[0][:top_k]  # Ensure we only take top_k results
+    top_scores_l2 = D_l2[0][:top_k]
     results_df_l2 = df.iloc[top_indices_l2].copy()
     results_df_l2['relevance_score'] = top_scores_l2
     
     # Cosine Search (Cosine Similarity)
-    cosine_scores, cosine_indices = search_cosine_index(query_embedding, cosine_index, top_k * 10)
-    top_indices_cosine = cosine_indices[0]
-    top_scores_cosine = cosine_scores[0]
+    cosine_scores, cosine_indices = search_cosine_index(query_embedding, cosine_index, top_k)
+    top_indices_cosine = cosine_indices[0][:top_k]  # Ensure we only take top_k results
+    top_scores_cosine = cosine_scores[0][:top_k]
     results_df_cosine = df.iloc[top_indices_cosine].copy()
     results_df_cosine['relevance_score'] = top_scores_cosine
     
@@ -160,14 +160,28 @@ st.divider()
 # Search Parameters section
 st.subheader('Search Parameters')
 with st.container():
-    st.markdown('**Filter by State or Ministry:**')
-    state_col = st.columns([1])[0]
-    selected_state = state_col.selectbox(
-        '',
-        state_options,
-        index=0,
-        key='state_filter',
-    )
+    # Create two columns for filters
+    col1, col2 = st.columns([2, 1])
+    
+    # State filter in first column
+    with col1:
+        st.markdown('**Filter by State or Ministry:**')
+        selected_state = st.selectbox(
+            '',
+            state_options,
+            index=0,
+            key='state_filter',
+        )
+    
+    # Results count in second column
+    with col2:
+        st.markdown('**Number of Results:**')
+        num_results = st.selectbox(
+            '',
+            [5, 10, 15, 20],
+            index=1,  # Default to 10
+            key='num_results',
+        )
     # Search form for query input and search button
     with st.form("search_form"):
         col1, col2 = st.columns([0.8, 0.2])
@@ -187,9 +201,9 @@ st.divider()
 if submitted and user_query.strip():
     st.write('Searching...')
     detected_state = extract_state_from_query(user_query, STATE_LIST)
-    # Use CrewAI agents for search
-    l2_results = euclidean_search_agent.tools[0].run(query=user_query, df=df, model=model, l2_index=l2_index, detected_state=detected_state, top_k=10)
-    cosine_results = cosine_search_agent.tools[0].run(query=user_query, df=df, model=model, cosine_index=cosine_index, detected_state=detected_state, top_k=10)
+    # Use CrewAI agents for search with selected number of results
+    l2_results = euclidean_search_agent.tools[0].run(query=user_query, df=df, model=model, l2_index=l2_index, detected_state=detected_state, top_k=num_results)
+    cosine_results = cosine_search_agent.tools[0].run(query=user_query, df=df, model=model, cosine_index=cosine_index, detected_state=detected_state, top_k=num_results)
     # Curate results
     l2_results = result_curator_agent.tools[0].run(search_results_df=l2_results, detected_state=detected_state)
     cosine_results = result_curator_agent.tools[0].run(search_results_df=cosine_results, detected_state=detected_state)

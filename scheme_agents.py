@@ -39,7 +39,7 @@ class EuclideanSearchTool(BaseTool):
     def _run(self, query: str, df: object, model: object, l2_index: object, detected_state: Optional[str] = None, top_k: int = 10):
         cleaned_query = query.lower().strip()
         query_embedding = model.encode([cleaned_query])
-        D_l2, I_l2 = l2_index.search(query_embedding, top_k * 10)
+        D_l2, I_l2 = l2_index.search(query_embedding, top_k)
         top_indices_l2 = I_l2[0]
         top_scores_l2 = D_l2[0]
         results_df_l2 = df.iloc[top_indices_l2].copy()
@@ -54,7 +54,7 @@ class CosineSearchTool(BaseTool):
     def _run(self, query: str, df: object, model: object, cosine_index: object, detected_state: Optional[str] = None, top_k: int = 10):
         cleaned_query = query.lower().strip()
         query_embedding = model.encode([cleaned_query])
-        cosine_scores, cosine_indices = search_cosine_index(query_embedding, cosine_index, top_k * 10)
+        cosine_scores, cosine_indices = search_cosine_index(query_embedding, cosine_index, top_k)
         top_indices_cosine = cosine_indices[0]
         top_scores_cosine = cosine_scores[0]
         results_df_cosine = df.iloc[top_indices_cosine].copy()
