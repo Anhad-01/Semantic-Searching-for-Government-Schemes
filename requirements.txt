@@ -4,3 +4,6 @@ faiss-cpu
 sentence-transformers 
 jax==0.4.14
 jaxlib==0.4.14
+beautifulsoup4
+selenium
+webdriver-manager
