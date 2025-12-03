@@ -7,7 +7,8 @@ required_packages = [
     'pandas',
     'scikit-learn',
     'sentence-transformers',
-    'faiss-cpu'
+    'faiss-cpu',
+    'indic-transliteration'
 ]
 
 def install_if_missing(package):
@@ -23,6 +24,8 @@ for pkg in required_packages:
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 import faiss
+from indic_transliteration import sanscript
+from indic_transliteration.sanscript import transliterate
 
 # Load the CSV file into a DataFrame
 csv_path = 'myscheme_data.csv'
@@ -39,18 +42,27 @@ df.info()
 # Text preprocessing function
 def clean_text(text):
     """
-    Lowercase, remove punctuation/special characters, and extra whitespace.
-    For production: add language-specific normalization (e.g., Hinglish transliteration/correction) here.
+    Keep original + add transliterated version for better search coverage.
+    Combines original script with transliterated Latin text.
     """
     if not isinstance(text, str):
         return ''
-    # Lowercase
-    text = text.lower()
-    # Remove punctuation and special characters (keep alphanumeric and spaces)
-    text = re.sub(r'[^a-z0-9\s]', '', text)
+    
+    original = text.lower()
+    
+    # Try to transliterate Devanagari to Latin script
+    transliterated = ''
+    try:
+        transliterated = transliterate(text, sanscript.DEVANAGARI, sanscript.ITRANS).lower()
+    except:
+        pass  # If transliteration fails, continue with original text only
+    
+    # Combine both (original script + transliterated)
+    combined = f"{original} {transliterated}".strip()
+    
     # Remove extra whitespace
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
+    combined = re.sub(r'\s+', ' ', combined).strip()
+    return combined
 
 # Apply clean_text to relevant columns
 for col in ['name', 'description', 'tags']:
