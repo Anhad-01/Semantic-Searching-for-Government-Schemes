@@ -7,3 +7,4 @@ jaxlib==0.4.17
 beautifulsoup4
 selenium
 webdriver-manager
+indic-transliteration
